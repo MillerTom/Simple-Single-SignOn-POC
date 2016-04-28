@@ -1,0 +1,74 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ *
+ * @return mixed
+ */
+function simple_sso_client_menu()
+{
+  $items['simple-sso-client/%/%'] = array(
+    'title' => 'Simple SSO Client Authentication',
+    'page callback' => 'simple_sso_client_authentication',
+    'page arguments' => array(1,2),
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['admin/config/services/simple-sso-client/settings'] = array(
+    'title' => 'Simple SSO Client Settings',
+    'description' => t('Simple SSO Client Settings'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('simple_sso_client_settings'),
+    'file' => 'simple_sso_client.admin.inc',
+    'access arguments' => array('administer simple sso client settings'),
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function simple_sso_permission() {
+  return array(
+    'administer simple sso client settings' => array(
+      'title' => t('Administer Simple SSO Client Settings'),
+    ),
+  );
+}
+
+/**
+ * Simple client authentication
+ *
+ * @param $username
+ * @param $key
+ * @return string
+ */
+function simple_sso_client_authentication($username, $key)
+{
+  $server_token = variable_get('simple_sso_client_key', '');
+  $server_url = variable_get('simple_sso_client_server_url', '');
+  $client_token = variable_get('simple_sso_client_server_token', '');
+
+  $url = $server_url . '/simple-sso/' . $username . '/' . $key . '/' . $server_token . '/' . $client_token;
+  $contents = file_get_contents($url);
+
+  if($contents){
+    $user = user_load_by_name($username);
+  }
+  else{
+    $user = user_load_by_name('op1');
+  }
+
+  $GLOBALS['user'] = $user;
+
+  $user->login = REQUEST_TIME;
+  db_update('users')
+    ->fields(array('login' => $user->login))
+    ->condition('uid', $user->uid)
+    ->execute();
+  drupal_session_regenerate();
+
+  drupal_goto('/');
+}

@@ -1,0 +1,56 @@
+<?php
+/**
+ * Implements hook_schema().
+ */
+function simple_sso_schema() {
+  $schema['simple_sso'] = array(
+    'description' => 'Table for the single sign on module',
+    'fields' => array(
+      'id' => array(
+        'description' => 'Primary key',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'username' => array(
+        'description' => 'Username',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => TRUE,
+      ),
+      'sso_key' => array(
+        'description' => 'API String',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => TRUE,
+      )
+    ),
+    'primary key' => array('id'),
+  );
+
+  $schema['simple_sso_domains'] = array(
+    'description' => 'Table for the single sign on module authorized domains',
+    'fields' => array(
+      'id' => array(
+        'description' => 'Primary key',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'domain' => array(
+        'description' => 'Domain',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => TRUE,
+      ),
+      'sso_token' => array(
+        'description' => 'Token String',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => TRUE,
+      )
+    ),
+    'primary key' => array('id'),
+  );
+  return $schema;
+}

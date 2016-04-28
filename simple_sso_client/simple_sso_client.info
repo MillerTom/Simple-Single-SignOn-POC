@@ -1,0 +1,3 @@
+name = Simple SSO Client
+description = Client for allowing single sign on.
+core = 7.x

@@ -1,0 +1,3 @@
+name = Simple SSO
+description = Handles single sign on.
+core = 7.x

@@ -1,0 +1,324 @@
+<?php
+
+/**
+ * Implements hook_init().
+ */
+function simple_sso_init()
+{
+  global $user;
+
+  if($user->uid > 0){
+    $key = simple_sso_random_str(15);
+    $username = $user->name;
+
+    $check_existing = simple_sso_find_entry($username);
+
+    if(!$check_existing){
+      simple_sso_insert_key($key, $username);
+    }
+    else{
+      simple_sso_update_key($key, $username);
+    }
+
+    $check_existing = simple_sso_find_entry($username);
+    drupal_add_js(drupal_get_path('module', 'simple_sso') . '/simple_sso.js', array('type' => 'file', 'scope' => 'footer', 'weight' => 5));
+    drupal_add_js(array('simple_sso' => array('username' => $check_existing['username'], 'sso_key' => $check_existing['sso_key'])), 'setting');
+  }
+}
+
+/**
+ * Implements hook_menu().
+ *
+ * @return mixed
+ */
+function simple_sso_menu()
+{
+  $items['simple-sso/%/%/%/%'] = array(
+    'title' => 'Simple SSO Authentication',
+    'page callback' => 'simple_sso_authentication',
+    'page arguments' => array(1,2,3,4),
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['simple-sso/token/%'] = array(
+    'title' => 'Simple SSO Domain Authentication',
+    'page callback' => 'simple_sso_domain_authentication',
+    'page arguments' => array(2),
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['admin/config/services/simple-sso/settings'] = array(
+    'title' => 'Simple SSO Settings',
+    'description' => t('Simple SSO Settings'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('simple_sso_settings'),
+    'file' => 'simple_sso.admin.inc',
+    'access arguments' => array('administer simple sso settings'),
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function simple_sso_permission() {
+  return array(
+    'administer simple sso settings' => array(
+      'title' => t('Administer Simple SSO Settings'),
+    ),
+  );
+}
+
+/**
+ * Find Key
+ *
+ * @param $username
+ * @return mixed
+ */
+function simple_sso_find_entry($username)
+{
+  return db_select('simple_sso', 's')
+    ->fields('s')
+    ->condition('username', $username,'=')
+    ->execute()
+    ->fetchAssoc();
+}
+
+/**
+ * Insert Key
+ *
+ * @param $key
+ * @param $username
+ * @return \DatabaseStatementInterface|int
+ * @throws \Exception
+ */
+function simple_sso_insert_key($key, $username)
+{
+  return db_insert('simple_sso')
+    ->fields(
+      array(
+        'username' => $username,
+        'sso_key' => $key
+      )
+    )
+    ->execute();
+}
+
+/**
+ * Update Key
+ *
+ * @param $key
+ * @param $username
+ * @return \DatabaseStatementInterface
+ */
+function simple_sso_update_key($key, $username)
+{
+  return db_update('simple_sso')
+  ->fields(
+    array(
+      'username' => $username,
+      'sso_key' => $key,
+    )
+  )
+  ->execute();
+}
+
+/**
+ * Find key by username and key
+ *
+ * @param $username
+ * @param $key
+ * @return mixed
+ */
+function simple_sso_authenticate($username, $key)
+{
+  return db_select('simple_sso', 's')
+    ->fields('s')
+    ->condition('username', $username,'=')
+    ->condition('sso_key', $key,'=')
+    ->execute()
+    ->fetchAssoc();
+}
+
+/**
+ * Find if domain key exists
+ *
+ * @param $domain
+ * @return mixed
+ */
+function simple_sso_client_find_entry($domain)
+{
+  return db_select('simple_sso_domains', 's')
+    ->fields('s')
+    ->condition('domain', $domain,'=')
+    ->execute()
+    ->fetchAssoc();
+}
+
+/**
+ * Find if token exists
+ *
+ * @param $token
+ * @return mixed
+ */
+function simple_sso_client_find_token_entry($token)
+{
+  return db_select('simple_sso_domains', 's')
+    ->fields('s')
+    ->condition('sso_token', $token,'=')
+    ->execute()
+    ->fetchAssoc();
+}
+
+/**
+ * Insert SSO client key
+ *
+ * @param $domain
+ * @param $token
+ * @return \DatabaseStatementInterface|int
+ * @throws \Exception
+ */
+function simple_sso_client_insert_key($domain, $token)
+{
+  return db_insert('simple_sso_domains')
+    ->fields(
+      array(
+        'domain' => $domain,
+        'sso_token' => $token
+      )
+    )
+    ->execute();
+}
+
+/**
+ * Update SSO client token
+ *
+ * @param $domain
+ * @param $token
+ * @return \DatabaseStatementInterface
+ */
+function simple_sso_client_update_key($domain, $token)
+{
+  return db_update('simple_sso_domains')
+    ->fields(
+      array(
+        'domain' => $domain,
+        'sso_token' => $token,
+      )
+    )
+    ->execute();
+}
+
+/**
+ * Find key by domain and token
+ *
+ * @param $domain
+ * @param $token
+ * @return mixed
+ */
+function simple_sso_client_authenticate($domain, $token)
+{
+  return db_select('simple_sso_domains', 's')
+    ->fields('s')
+    ->condition('domain', $domain,'=')
+    ->condition('sso_token', $token,'=')
+    ->execute()
+    ->fetchAssoc();
+}
+
+/**
+ * Random String
+ *
+ * @param int $length
+ * @return string
+ */
+function simple_sso_random_str($length = 15)
+{
+  $alphabet = "abcdefghijklmnopqrstuwxyzABCDEFGHIJKLMNOPQRSTUWXYZ0123456789";
+  $pass = array();
+  $alphaLength = strlen($alphabet) - 1;
+  for ($i = 0; $i < $length; $i++) {
+    $n = rand(0, $alphaLength);
+    $pass[] = $alphabet[$n];
+  }
+  return implode($pass);
+}
+
+/**
+ * Determines authentication
+ *
+ * @param $username
+ * @param $key
+ * @param $api_key
+ * @param $token
+ */
+function simple_sso_authentication($username, $key, $api_key, $token)
+{
+  $authorized = false;
+  $key_auth   = false;
+  $sso_entry  = false;
+  $token_auth = false;
+
+  if($api_key == variable_get('simple_sso_key', '')){
+    $key_auth = true;
+  }
+
+  if(simple_sso_authenticate($username, $key)){
+    $sso_entry = true;
+  }
+
+  if(simple_sso_client_find_token_entry($token)){
+    $token_auth = true;
+  }
+
+  if($key_auth && $sso_entry && $token_auth){
+    $authorized = true;
+  }
+
+  watchdog('simple_sso', $token_auth);
+
+  return drupal_json_output(array($authorized));
+}
+
+/**
+ * Generates a token for SSO clients
+ *
+ * @param $key
+ */
+function simple_sso_domain_authentication($key)
+{
+  // By default lets assume error
+  $token['status'] = 'error';
+  $token['message'] = t('Error generating token.');
+  $domains = explode(',', variable_get('simple_sso_allowed_domains'));
+  $domain = $_GET['domain'];
+  if($key == variable_get('simple_sso_key', '')){
+    if(in_array($domain, $domains)){
+
+      $token['token'] = simple_sso_random_str(20);
+      $token['status'] = 'status';
+      $token['message'] = t('Token generated Successfully');
+
+      $token_find = simple_sso_client_find_entry($domain);
+
+      if($token_find){
+        simple_sso_client_update_key($domain, $token['token']);
+      }
+      else{
+        simple_sso_client_insert_key($domain, $token['token']);
+      }
+
+    }
+    else{
+      $token['message'] = t('Domain not allowed.');
+    }
+  }
+  else{
+    $token['message'] = t('Incorrect SSO token.');
+  }
+
+  return drupal_json_output($token);
+}
